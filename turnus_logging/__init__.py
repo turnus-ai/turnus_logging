@@ -1,13 +1,15 @@
 """
 Turnus Logging - Standalone logging library with context propagation
 
-A flexible Python logging library with automatic context propagation and optional Sentry integration.
+A flexible Python logging library with automatic context propagation, optional Sentry integration,
+and AWS Lambda Powertools support.
 
 Features:
 - Zero dependencies (core functionality)
 - Thread & async safe context management via contextvars
 - Custom log context injection with log_context()
 - Optional Sentry integration with automatic enrichment
+- Optional AWS Lambda Powertools integration
 - Payload sanitization for safe logging
 
 Quick Start:
@@ -58,6 +60,34 @@ from .config import (
     get_logger,
 )
 
+# Optional integrations - import with try/except to avoid requiring optional dependencies
+# AWS Powertools integration
+try:
+    from .aws_powertools_integration import (
+        setup_powertools_logging,
+        get_powertools_decorator,
+        inject_turnus_context_to_powertools,
+    )
+    _HAS_POWERTOOLS = True
+except ImportError:
+    _HAS_POWERTOOLS = False
+    # Provide dummy functions that raise helpful errors
+    def setup_powertools_logging(*args, **kwargs):
+        raise ImportError(
+            "AWS Lambda Powertools integration requires aws-lambda-powertools. "
+            "Install with: pip install turnus-logging[powertools]"
+        )
+    def get_powertools_decorator(*args, **kwargs):
+        raise ImportError(
+            "AWS Lambda Powertools integration requires aws-lambda-powertools. "
+            "Install with: pip install turnus-logging[powertools]"
+        )
+    def inject_turnus_context_to_powertools(*args, **kwargs):
+        raise ImportError(
+            "AWS Lambda Powertools integration requires aws-lambda-powertools. "
+            "Install with: pip install turnus-logging[powertools]"
+        )
+
 # Note: These will be added in subsequent steps
 # from .middleware import RequestContextMiddleware, UserContextMiddleware
 # from .integrations import send_sqs_message, put_events
@@ -83,6 +113,10 @@ __all__ = [
     'sanitize_response_metadata',
     'get_payload_summary',
     # Middleware (optional, will fail gracefully if framework not installed)
+    # AWS Powertools integration (optional, requires aws-lambda-powertools)
+    'setup_powertools_logging',
+    'get_powertools_decorator',
+    'inject_turnus_context_to_powertools',
 ]
 
 # Middleware is imported on-demand to avoid requiring web frameworks

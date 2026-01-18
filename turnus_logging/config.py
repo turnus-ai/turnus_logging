@@ -16,10 +16,11 @@ def setup_logging(
     console_format: Optional[str] = None,
     enable_console: bool = True,
     sentry: Optional[Dict[str, Any]] = None,
+    powertools: Optional[Dict[str, Any]] = None,
     config_file: Optional[str] = None,
 ) -> logging.Logger:
     """
-    Setup logging with optional Sentry integration.
+    Setup logging with optional Sentry and/or Powertools integration.
     
     Supports configuration from:
     1. Function parameters (highest priority)
@@ -36,23 +37,30 @@ def setup_logging(
             - environment: Environment name (or use SENTRY_ENVIRONMENT env var)
             - event_level: Log level for Sentry events (default: ERROR)
             - breadcrumb_level: Log level for breadcrumbs (default: INFO)
+        powertools: AWS Lambda Powertools configuration dict with keys:
+            - enabled: Enable Powertools integration (default: False)
+            - correlation_id_path: JSONPath to extract correlation ID from events
+            - log_event: Whether to log the incoming event (default: False)
         config_file: Path to JSON config file (optional, auto-discovers if not provided)
     
     Returns:
-        Configured logger instance
+        Configured logger instance that routes to console, Sentry (if enabled), 
+        and Powertools (if enabled)
     """
     # Load config from file/env if not all params provided
-    if service_name is None or log_level is None or sentry is None:
+    if service_name is None or log_level is None or sentry is None or powertools is None:
         from .config_loader import load_logging_config
         config = load_logging_config(config_file)
         
         service_name = service_name or config.get('service_name', 'turnus_ai')
         log_level = log_level or getattr(logging, config.get('log_level', 'INFO'))
         sentry = sentry or config.get('sentry')
+        powertools = powertools or config.get('powertools')
     
     # Default values if still None
     service_name = service_name or 'turnus_ai'
     log_level = log_level or logging.INFO
+    
     # Set service_name in global context so it appears in all logs
     current_context = get_context() or {}
     current_context['service'] = service_name
@@ -86,6 +94,17 @@ def setup_logging(
     if sentry:
         from .sentry_integration import setup_sentry
         setup_sentry(root_logger, sentry)
+    
+    # Powertools integration (if configured and available)
+    if powertools and powertools.get('enabled', False):
+        try:
+            from .aws_powertools_integration import setup_powertools_handler
+            setup_powertools_handler(root_logger, service_name, powertools)
+        except ImportError:
+            logger.warning(
+                "Powertools integration requested but aws-lambda-powertools not installed. "
+                "Install with: pip install 'turnus-logging[powertools]'"
+            )
 
     return logger
 
