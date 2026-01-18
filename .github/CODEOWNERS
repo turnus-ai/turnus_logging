@@ -1,0 +1,22 @@
+# .github/CODEOWNERS
+# Code owners are automatically requested for review when PRs touch these files
+
+# Global owner - require your approval for any change
+* @turnus-hoe
+
+# Critical library code - require your review
+/turnus_logging/ @turnus-hoe
+
+# Package configuration - require your review
+/setup.py @turnus-hoe
+/pyproject.toml @turnus-hoe
+/requirements.txt @turnus-hoe
+
+# Security-sensitive files
+/SECURITY.md @turnus-hoe
+/.github/ @turnus-hoe
+
+# Documentation
+/README.md @turnus-hoe
+/CONTRIBUTING.md @turnus-hoe
+/examples/ @turnus-hoe
