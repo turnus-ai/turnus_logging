@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include requirements.txt
+include logging_config.example.json
+recursive-include turnus_logging *.py
+exclude examples/*

@@ -1,0 +1,25 @@
+{
+  "service_name": "my-api",
+  "log_level": "INFO",
+  "sentry": {
+    "dsn": "${SENTRY_DSN}",
+    "environment": "production",
+    "event_level": "ERROR",
+    "breadcrumb_level": "INFO"
+  },
+  "middleware": {
+    "type": "fastapi",
+    "request_id_header": "X-Request-ID",
+    "generate_request_id": true,
+    "include_method": true,
+    "include_path": true,
+    "include_client_ip": false,
+    "capture_headers": [
+      "X-API-Version",
+      "X-Tenant-ID",
+      "X-Client-Version",
+      "User-Agent"
+    ],
+    "exclude_paths": ["/health", "/metrics", "/readiness"]
+  }
+}

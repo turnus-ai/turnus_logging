@@ -1,0 +1,6 @@
+# Optional dependencies
+# Install with: pip install -r requirements.txt
+
+# Sentry integration (optional)
+# Requires >=2.35.0 for Sentry Logs product support
+sentry-sdk>=2.35.0
