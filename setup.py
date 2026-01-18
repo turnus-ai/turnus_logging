@@ -39,6 +39,13 @@ setup(
         "sentry": [
             "sentry-sdk>=2.35.0",  # Required for Sentry Logs product
         ],
+        "powertools": [
+            "aws-lambda-powertools>=2.0.0",  # AWS Lambda Powertools integration
+        ],
+        "all": [
+            "sentry-sdk>=2.35.0",
+            "aws-lambda-powertools>=2.0.0",
+        ],
         "dev": [
             "pytest>=7.0.0",
             "pytest-asyncio>=0.21.0",

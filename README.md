@@ -1,6 +1,6 @@
 # Turnus Logging
 
-A flexible, standalone Python logging library with automatic context propagation, custom log context injection, and optional Sentry integration.
+A flexible, standalone Python logging library with automatic context propagation, custom log context injection, and optional Sentry/Powertools integration.
 
 ## Features
 
@@ -9,7 +9,9 @@ A flexible, standalone Python logging library with automatic context propagation
 ✅ **Custom Context Injection** - Add temporary context with `log_context()`  
 ✅ **Thread & Async Safe** - Uses `contextvars` for proper isolation  
 ✅ **Non-Obtrusive** - Just use `logger.info()` - everything else is automatic  
+✅ **Unified Logging** - Single logger.info() routes to multiple destinations  
 ✅ **Sentry Integration** - Optional, with automatic context enrichment  
+✅ **AWS Powertools Integration** - Optional, for Lambda/CloudWatch  
 ✅ **Payload Sanitization** - Built-in tools to redact sensitive data  
 
 ## Installation
@@ -21,13 +23,19 @@ pip install turnus-logging
 # With Sentry support
 pip install turnus-logging[sentry]
 
+# With AWS Lambda Powertools support
+pip install turnus-logging[powertools]
+
+# With both Sentry and Powertools
+pip install turnus-logging[all]
+
 # From GitHub (latest)
 pip install git+https://github.com/turnus-ai/turnus-logging.git
 
 # For development
 git clone https://github.com/turnus-ai/turnus-logging.git
 cd turnus-logging
-pip install -e ".[dev,sentry]"
+pip install -e ".[dev,sentry,powertools]"
 ```
 
 ## Quick Start
@@ -113,11 +121,81 @@ await asyncio.gather(
 
 ## Complete Example
 
-See `example.py` for a full working demonstration:
+See `examples/unified_logging_example.py` for a full demonstration of logging to multiple destinations.
 
-```bash
-python example.py
+## Unified Logging to Multiple Destinations
+
+**Key Feature**: A single `logger.info()` call can route to multiple destinations simultaneously:
+- **Console** (structured JSON output)
+- **Sentry** (error tracking and breadcrumbs)
+- **AWS Lambda Powertools** (CloudWatch Logs with structured logging)
+
+### Example: Enable Both Sentry AND Powertools
+
+```python
+import logging
+from turnus_logging import setup_logging, log_context
+
+# Setup once with multiple destinations
+logger = setup_logging(
+    service_name='order-processor',
+    log_level=logging.INFO,
+    
+    # Sentry for error tracking
+    sentry={
+        'dsn': 'https://your-sentry-dsn@sentry.io/project-id',
+        'environment': 'production',
+        'event_level': logging.ERROR,      # Send errors to Sentry
+        'breadcrumb_level': logging.INFO,  # Breadcrumbs for all INFO+
+    },
+    
+    # Powertools for CloudWatch structured logging
+    powertools={
+        'enabled': True,
+        'log_event': False,  # Don't log full Lambda event (optional)
+    }
+)
+
+# Lambda handler
+def lambda_handler(event, context):
+    user_id = event.get('userId')
+    
+    # Set context ONCE - applies to ALL destinations
+    with log_context(user_id=user_id, order_id=event.get('orderId')):
+        # This single line logs to:
+        # 1. Console (structured JSON)
+        # 2. Sentry (as breadcrumb)
+        # 3. CloudWatch via Powertools
+        logger.info("Processing order")
+        
+        try:
+            result = process_order(event)
+            logger.info("Order completed", extra={'result': result})
+            return {'statusCode': 200}
+            
+        except Exception as e:
+            # Error goes to console, Sentry (as event), AND CloudWatch
+            logger.error(f"Order failed: {e}", exc_info=True)
+            return {'statusCode': 500}
 ```
+
+### Benefits of Unified Logging
+
+1. **Write Once, Log Everywhere**: Single `logger.info()` → all destinations
+2. **Consistent Context**: `log_context()` applies to all outputs
+3. **Standard Interface**: Use familiar Python logging API
+4. **Flexible Configuration**: Enable/disable destinations without code changes
+5. **Zero Code Duplication**: No need for separate Sentry/Powertools calls
+
+### Configuration Matrix
+
+| Configuration | Console | Sentry | Powertools |
+|--------------|---------|--------|------------|
+| `setup_logging()` | ✅ | ❌ | ❌ |
+| `setup_logging(sentry={...})` | ✅ | ✅ | ❌ |
+| `setup_logging(powertools={...})` | ✅ | ❌ | ✅ |
+| `setup_logging(sentry={...}, powertools={...})` | ✅ | ✅ | ✅ |
+
 
 ## Configuration Options
 
@@ -129,11 +207,50 @@ setup_logging(
     enable_console=True,             # Enable console output
     
     # Sentry integration (optional)
-    sentry_dsn='https://...',        # Sentry DSN
-    sentry_environment='production', # Environment tag
-    sentry_event_level=logging.ERROR,     # Log level for Sentry events
-    sentry_breadcrumb_level=logging.INFO, # Log level for breadcrumbs
+    sentry={
+        'dsn': 'https://...',              # Sentry DSN
+        'environment': 'production',       # Environment tag
+        'event_level': logging.ERROR,      # Log level for Sentry events
+        'breadcrumb_level': logging.INFO,  # Log level for breadcrumbs
+    },
+    
+    # AWS Powertools integration (optional)
+    powertools={
+        'enabled': True,                   # Enable Powertools
+        'log_level': 'INFO',              # Powertools log level
+        'correlation_id_path': None,      # JSONPath for correlation ID
+        'log_event': False,               # Whether to log incoming event
+    },
+    
+    # Config file (optional, auto-discovers if not provided)
+    config_file='/path/to/logging_config.json',
 )
+```
+
+### Configuration via JSON File
+
+You can also configure logging via a JSON file:
+
+```json
+{
+  "service_name": "my-app",
+  "log_level": "INFO",
+  "sentry": {
+    "dsn": "https://your-sentry-dsn@sentry.io/project-id",
+    "environment": "production",
+    "event_level": "ERROR"
+  },
+  "powertools": {
+    "enabled": true,
+    "log_event": false
+  }
+}
+```
+
+Then simply:
+
+```python
+logger = setup_logging()  # Auto-discovers and loads config file
 ```
 
 ## Log Formats

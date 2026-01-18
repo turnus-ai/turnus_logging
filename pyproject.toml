@@ -31,6 +31,8 @@ dependencies = []
 
 [project.optional-dependencies]
 sentry = ["sentry-sdk>=2.35.0"]
+powertools = ["aws-lambda-powertools>=2.0.0"]
+all = ["sentry-sdk>=2.35.0", "aws-lambda-powertools>=2.0.0"]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
