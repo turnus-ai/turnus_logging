@@ -20,8 +20,8 @@ def setup_sentry(logger: logging.Logger, sentry_config: Dict[str, Any]) -> None:
             - breadcrumb_level: Log level for breadcrumbs (default: INFO)
             - release: Release identifier tagged on every event, enables
               regression detection and "Fixes SENTRY-ID" auto-resolve
-              (or use RELEASE / SENTRY_RELEASE env var; deploy pipelines
-              already set RELEASE to the short git sha, see
+              (or use SENTRY_RELEASE / RELEASE env var, in that precedence;
+              deploy pipelines already set RELEASE to the short git sha, see
               e.g. turnus-question-answering-service/.github/workflows/deploy.yaml)
             - traces_sample_rate: Fraction of transactions sent for
               performance tracing (or use SENTRY_TRACES_SAMPLE_RATE env var).
@@ -36,12 +36,18 @@ def setup_sentry(logger: logging.Logger, sentry_config: Dict[str, Any]) -> None:
     sentry_environment = sentry_config.get('environment') or os.getenv('SENTRY_ENVIRONMENT', 'development')
     sentry_event_level = sentry_config.get('event_level', logging.ERROR)
     sentry_breadcrumb_level = sentry_config.get('breadcrumb_level', logging.INFO)
-    sentry_release = sentry_config.get('release') or os.getenv('RELEASE') or os.getenv('SENTRY_RELEASE')
+    sentry_release = sentry_config.get('release') or os.getenv('SENTRY_RELEASE') or os.getenv('RELEASE')
 
     traces_sample_rate = sentry_config.get('traces_sample_rate')
     if traces_sample_rate is None:
         env_rate = os.getenv('SENTRY_TRACES_SAMPLE_RATE')
-        traces_sample_rate = float(env_rate) if env_rate else 1.0
+        if env_rate:
+            try:
+                traces_sample_rate = float(env_rate)
+            except ValueError:
+                logger.warning(f'Invalid SENTRY_TRACES_SAMPLE_RATE={env_rate!r}, falling back to 1.0')
+        if traces_sample_rate is None:
+            traces_sample_rate = 1.0
 
     try:
         import sentry_sdk

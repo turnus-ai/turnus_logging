@@ -120,7 +120,10 @@ def _merge_env_vars(config: Dict[str, Any]) -> Dict[str, Any]:
         config['sentry']['release'] = release
 
     if os.getenv('SENTRY_TRACES_SAMPLE_RATE'):
-        config['sentry']['traces_sample_rate'] = float(os.getenv('SENTRY_TRACES_SAMPLE_RATE'))
+        try:
+            config['sentry']['traces_sample_rate'] = float(os.getenv('SENTRY_TRACES_SAMPLE_RATE'))
+        except ValueError:
+            pass
 
     # Middleware config
     if 'middleware' not in config:
