@@ -212,6 +212,11 @@ setup_logging(
         'environment': 'production',       # Environment tag
         'event_level': logging.ERROR,      # Log level for Sentry events
         'breadcrumb_level': logging.INFO,  # Log level for breadcrumbs
+        'release': None,                   # Release id (or RELEASE / SENTRY_RELEASE env var;
+                                            # deploy pipelines already set RELEASE to the git sha)
+        'traces_sample_rate': 1.0,         # Transaction sampling rate (or SENTRY_TRACES_SAMPLE_RATE
+                                            # env var). Default 1.0 kept for backward compat;
+                                            # recommended production value is 0.1-0.2.
     },
     
     # AWS Powertools integration (optional)
