@@ -37,6 +37,11 @@ def setup_logging(
             - environment: Environment name (or use SENTRY_ENVIRONMENT env var)
             - event_level: Log level for Sentry events (default: ERROR)
             - breadcrumb_level: Log level for breadcrumbs (default: INFO)
+            - release: Release identifier (or use RELEASE / SENTRY_RELEASE env var)
+            - traces_sample_rate: Transaction sampling rate 0.0-1.0 (or use
+              SENTRY_TRACES_SAMPLE_RATE env var). Default 1.0; recommended
+              production value is 0.1-0.2. See sentry_integration.setup_sentry
+              for details.
         powertools: AWS Lambda Powertools configuration dict with keys:
             - enabled: Enable Powertools integration (default: False)
             - correlation_id_path: JSONPath to extract correlation ID from events

@@ -10,6 +10,7 @@ Run with: python test_unified_logging.py
 """
 
 import logging
+import os
 import sys
 from io import StringIO
 from unittest.mock import Mock, patch, MagicMock
@@ -240,6 +241,85 @@ else:
     print(f"   Install with: pip install {' '.join(missing)}\n")
 
 
+# Test 7: traces_sample_rate validation
+print("=" * 70)
+print("TEST 7: traces_sample_rate Validation")
+print("=" * 70)
+
+if sentry_available:
+    from turnus_logging.sentry_integration import setup_sentry
+
+    fake_dsn = 'https://fake@sentry.io/123'
+
+    with patch.dict(os.environ, {}, clear=False):
+        os.environ.pop('SENTRY_TRACES_SAMPLE_RATE', None)
+
+        # 7a: invalid (non-numeric) config value falls back to default 1.0
+        with patch('sentry_sdk.init') as mock_init:
+            mock_logger = Mock()
+            setup_sentry(mock_logger, {'dsn': fake_dsn, 'traces_sample_rate': 'not-a-number'})
+            assert mock_init.called, "sentry_sdk.init should be called"
+            assert mock_init.call_args.kwargs['traces_sample_rate'] == 1.0, \
+                "Invalid config value should fall back to 1.0"
+            assert mock_logger.warning.called, "Invalid config value should warn"
+            warning_msg = mock_logger.warning.call_args[0][0]
+            assert 'default 1.0' in warning_msg, "Warning should state the actual fallback (default 1.0)"
+            print("✓ 7a: invalid config value -> falls back to default 1.0, warning is accurate")
+
+        # 7b: out-of-range config value (2.0) is rejected, falls back to default 1.0
+        with patch('sentry_sdk.init') as mock_init:
+            mock_logger = Mock()
+            setup_sentry(mock_logger, {'dsn': fake_dsn, 'traces_sample_rate': 2.0})
+            assert mock_init.call_args.kwargs['traces_sample_rate'] == 1.0, \
+                "Out-of-range config value should fall back to 1.0"
+            assert mock_logger.warning.called, "Out-of-range config value should warn"
+            print("✓ 7b: out-of-range config value (2.0) rejected -> default 1.0")
+
+        # 7c: explicit 0.0 is preserved, not treated as falsy/unset
+        with patch('sentry_sdk.init') as mock_init:
+            mock_logger = Mock()
+            setup_sentry(mock_logger, {'dsn': fake_dsn, 'traces_sample_rate': 0.0})
+            assert mock_init.call_args.kwargs['traces_sample_rate'] == 0.0, \
+                "Explicit 0.0 should be preserved"
+            assert not mock_logger.warning.called, "Valid 0.0 should not warn"
+            print("✓ 7c: explicit 0.0 preserved (not coerced to default)")
+
+    # 7d: valid env value wins when config value is invalid; warning names the
+    # actual winner instead of a hardcoded "falling back to 1.0" claim
+    with patch.dict(os.environ, {'SENTRY_TRACES_SAMPLE_RATE': '0.25'}):
+        with patch('sentry_sdk.init') as mock_init:
+            mock_logger = Mock()
+            setup_sentry(mock_logger, {'dsn': fake_dsn, 'traces_sample_rate': 'nan'})
+            assert mock_init.call_args.kwargs['traces_sample_rate'] == 0.25, \
+                "Valid env value should win when config value is invalid"
+            assert mock_logger.warning.called, "Invalid config value should still warn"
+            warning_msg = mock_logger.warning.call_args[0][0]
+            assert 'SENTRY_TRACES_SAMPLE_RATE' in warning_msg and '0.25' in warning_msg, \
+                "Warning should name the env value that actually won"
+            assert 'falling back to 1.0' not in warning_msg, \
+                "Warning must not claim 1.0 is used when the env value actually won"
+            print("✓ 7d: valid env override wins over invalid config; warning names the real outcome")
+
+    # 7e: config_loader applies the same validation to SENTRY_TRACES_SAMPLE_RATE
+    from turnus_logging.config_loader import load_logging_config
+
+    with patch.dict(os.environ, {'SENTRY_TRACES_SAMPLE_RATE': '2.0'}):
+        cfg = load_logging_config('/nonexistent-config-file.json')
+        assert 'traces_sample_rate' not in cfg.get('sentry', {}), \
+            "config_loader should drop an out-of-range SENTRY_TRACES_SAMPLE_RATE"
+
+    with patch.dict(os.environ, {'SENTRY_TRACES_SAMPLE_RATE': '0.3'}):
+        cfg = load_logging_config('/nonexistent-config-file.json')
+        assert cfg['sentry']['traces_sample_rate'] == 0.3, \
+            "config_loader should keep a valid SENTRY_TRACES_SAMPLE_RATE"
+
+    print("✓ 7e: config_loader validates SENTRY_TRACES_SAMPLE_RATE the same way")
+
+    print("\n✅ Test 7 passed - traces_sample_rate validation works correctly\n")
+else:
+    print("\n⏭ Test 7 skipped - sentry-sdk not installed\n")
+
+
 # Final Summary
 print("=" * 70)
 print("TEST SUMMARY")
@@ -250,6 +330,8 @@ print(f"{'✅' if powertools_available else '⏭'} Test 3: Handler verification 
 print("✅ Test 4: Context propagation - PASSED")
 print(f"{'✅' if sentry_available else '⏭'} Test 5: Sentry integration - {'PASSED' if sentry_available else 'SKIPPED'}")
 print(f"{'✅' if (powertools_available and sentry_available) else '⏭'} Test 6: Full integration - {'PASSED' if (powertools_available and sentry_available) else 'SKIPPED'}")
+test7_status = 'PASSED' if sentry_available else 'SKIPPED'
+print(f"{'✅' if sentry_available else '⏭'} Test 7: traces_sample_rate validation - {test7_status}")
 print("=" * 70)
 
 if not powertools_available:

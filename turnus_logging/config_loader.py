@@ -112,7 +112,20 @@ def _merge_env_vars(config: Dict[str, Any]) -> Dict[str, Any]:
     
     if os.getenv('SENTRY_ENVIRONMENT'):
         config['sentry']['environment'] = os.getenv('SENTRY_ENVIRONMENT')
-    
+
+    # Release: prefer explicit SENTRY_RELEASE, fall back to RELEASE (the
+    # short git sha the deploy pipelines already set on the Lambda env).
+    release = os.getenv('SENTRY_RELEASE') or os.getenv('RELEASE')
+    if release:
+        config['sentry']['release'] = release
+
+    if os.getenv('SENTRY_TRACES_SAMPLE_RATE'):
+        from .sentry_integration import _coerce_sample_rate
+
+        rate = _coerce_sample_rate(os.getenv('SENTRY_TRACES_SAMPLE_RATE'))
+        if rate is not None:
+            config['sentry']['traces_sample_rate'] = rate
+
     # Middleware config
     if 'middleware' not in config:
         config['middleware'] = {}
