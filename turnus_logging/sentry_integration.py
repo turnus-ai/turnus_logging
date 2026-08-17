@@ -39,6 +39,13 @@ def setup_sentry(logger: logging.Logger, sentry_config: Dict[str, Any]) -> None:
     sentry_release = sentry_config.get('release') or os.getenv('SENTRY_RELEASE') or os.getenv('RELEASE')
 
     traces_sample_rate = sentry_config.get('traces_sample_rate')
+    if traces_sample_rate is not None:
+        try:
+            traces_sample_rate = float(traces_sample_rate)
+        except (TypeError, ValueError):
+            logger.warning(f'Invalid sentry.traces_sample_rate={traces_sample_rate!r}, falling back to 1.0')
+            traces_sample_rate = None
+
     if traces_sample_rate is None:
         env_rate = os.getenv('SENTRY_TRACES_SAMPLE_RATE')
         if env_rate:
