@@ -9,13 +9,17 @@ from typing import Optional, Dict, Any
 from .formatters import ContextFormatter, get_default_format
 from .context import set_context, get_context
 
+# Sentinel distinguishing "caller didn't pass sentry" (infer from config/env)
+# from "caller passed sentry=None" (hard disable, never resurrected).
+_UNSET = object()
+
 
 def setup_logging(
     service_name: Optional[str] = None,
     log_level: Optional[int] = None,
     console_format: Optional[str] = None,
     enable_console: bool = True,
-    sentry: Optional[Dict[str, Any]] = None,
+    sentry: Optional[Dict[str, Any]] = _UNSET,
     powertools: Optional[Dict[str, Any]] = None,
     config_file: Optional[str] = None,
 ) -> logging.Logger:
@@ -32,7 +36,10 @@ def setup_logging(
         log_level: Minimum log level
         console_format: Custom format string
         enable_console: Enable console output (useful to disable in production)
-        sentry: Sentry configuration dict with keys:
+        sentry: Sentry configuration dict, or None to explicitly disable Sentry
+            (never resurrected from SENTRY_DSN env var or config file). Omit
+            this parameter entirely to infer from config file/env as before.
+            Dict keys:
             - dsn: Sentry DSN (or use SENTRY_DSN env var)
             - environment: Environment name (or use SENTRY_ENVIRONMENT env var)
             - event_level: Log level for Sentry events (default: ERROR)
@@ -53,13 +60,14 @@ def setup_logging(
         and Powertools (if enabled)
     """
     # Load config from file/env if not all params provided
-    if service_name is None or log_level is None or sentry is None or powertools is None:
+    if service_name is None or log_level is None or sentry is _UNSET or powertools is None:
         from .config_loader import load_logging_config
         config = load_logging_config(config_file)
-        
+
         service_name = service_name or config.get('service_name', 'turnus_ai')
         log_level = log_level or getattr(logging, config.get('log_level', 'INFO'))
-        sentry = sentry or config.get('sentry')
+        if sentry is _UNSET:
+            sentry = config.get('sentry')
         powertools = powertools or config.get('powertools')
     
     # Default values if still None
