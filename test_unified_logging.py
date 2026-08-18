@@ -320,6 +320,45 @@ else:
     print("\n⏭ Test 7 skipped - sentry-sdk not installed\n")
 
 
+# Test 8: explicit sentry=None hard-disables Sentry (never resurrected from env)
+print("=" * 70)
+print("TEST 8: Explicit sentry=None Disables Sentry")
+print("=" * 70)
+
+if sentry_available:
+    fake_dsn = 'https://fake@sentry.io/123'
+
+    # 8a: explicit sentry=None + SENTRY_DSN set -> Sentry must NOT initialize
+    with patch.dict(os.environ, {'SENTRY_DSN': fake_dsn}):
+        with patch('sentry_sdk.init') as mock_init:
+            setup_logging(service_name='test-explicit-none', sentry=None)
+            assert not mock_init.called, \
+                "explicit sentry=None must disable Sentry even when SENTRY_DSN is set"
+            print("✓ 8a: explicit sentry=None + SENTRY_DSN set -> Sentry NOT initialized")
+
+    # 8b: sentry param omitted + SENTRY_DSN set -> inferred as before (unchanged behavior)
+    with patch.dict(os.environ, {'SENTRY_DSN': fake_dsn}):
+        with patch('sentry_sdk.init') as mock_init:
+            setup_logging(service_name='test-omitted-sentry')
+            assert mock_init.called, \
+                "omitting sentry param should still infer Sentry config from SENTRY_DSN env var"
+            print("✓ 8b: sentry param omitted + SENTRY_DSN set -> Sentry initialized (inferred)")
+
+    # 8c: explicit sentry dict is unaffected by the sentinel change
+    with patch('sentry_sdk.init') as mock_init:
+        setup_logging(
+            service_name='test-explicit-dict',
+            sentry={'dsn': fake_dsn, 'environment': 'test'},
+        )
+        assert mock_init.called, "explicit sentry dict should still initialize Sentry"
+        assert mock_init.call_args.kwargs['dsn'] == fake_dsn, "explicit dsn should be passed through"
+        print("✓ 8c: explicit sentry dict unchanged -> Sentry initialized")
+
+    print("\n✅ Test 8 passed - explicit sentry=None disables Sentry correctly\n")
+else:
+    print("\n⏭ Test 8 skipped - sentry-sdk not installed\n")
+
+
 # Final Summary
 print("=" * 70)
 print("TEST SUMMARY")
@@ -332,6 +371,8 @@ print(f"{'✅' if sentry_available else '⏭'} Test 5: Sentry integration - {'PA
 print(f"{'✅' if (powertools_available and sentry_available) else '⏭'} Test 6: Full integration - {'PASSED' if (powertools_available and sentry_available) else 'SKIPPED'}")
 test7_status = 'PASSED' if sentry_available else 'SKIPPED'
 print(f"{'✅' if sentry_available else '⏭'} Test 7: traces_sample_rate validation - {test7_status}")
+test8_status = 'PASSED' if sentry_available else 'SKIPPED'
+print(f"{'✅' if sentry_available else '⏭'} Test 8: explicit sentry=None disables Sentry - {test8_status}")
 print("=" * 70)
 
 if not powertools_available:
