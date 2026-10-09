@@ -49,6 +49,8 @@ def setup_logging(
               SENTRY_TRACES_SAMPLE_RATE env var). Default 1.0; recommended
               production value is 0.1-0.2. See sentry_integration.setup_sentry
               for details.
+            - include_local_variables: Send frame locals with events. Off
+              unless True, because they carry credentials and customer data.
         powertools: AWS Lambda Powertools configuration dict with keys:
             - enabled: Enable Powertools integration (default: False)
             - correlation_id_path: JSONPath to extract correlation ID from events

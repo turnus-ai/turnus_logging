@@ -217,6 +217,10 @@ setup_logging(
         'traces_sample_rate': 1.0,         # Transaction sampling rate (or SENTRY_TRACES_SAMPLE_RATE
                                             # env var). Default 1.0 kept for backward compat;
                                             # recommended production value is 0.1-0.2.
+        'include_local_variables': False,  # Send the local variables of every stack frame. Off
+                                            # unless True: they carry credentials and customer data
+                                            # (a database URL, an auth header, a document), and
+                                            # Sentry's scrubber only matches exact variable names.
     },
     
     # AWS Powertools integration (optional)
