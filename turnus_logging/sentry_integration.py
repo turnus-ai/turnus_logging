@@ -47,6 +47,12 @@ def setup_sentry(logger: logging.Logger, sentry_config: Dict[str, Any]) -> None:
               next source in the config -> env -> default chain is used.
               Defaults to 1.0 for backward compatibility; recommended
               production value is 0.1-0.2 to control event volume/cost.
+            - include_local_variables: Send the local variables of every
+              stack frame with an event. Off unless set to True. Frame locals
+              are where credentials and customer data leak (a database URL
+              in a local, an auth header in an HTTP client frame), the SDK's
+              scrubber only matches exact top-level variable names, and no
+              list of libraries can cover the service's own frames.
     """
     sentry_dsn = sentry_config.get('dsn') or os.getenv('SENTRY_DSN')
 
@@ -57,6 +63,13 @@ def setup_sentry(logger: logging.Logger, sentry_config: Dict[str, Any]) -> None:
     sentry_event_level = sentry_config.get('event_level', logging.ERROR)
     sentry_breadcrumb_level = sentry_config.get('breadcrumb_level', logging.INFO)
     sentry_release = sentry_config.get('release') or os.getenv('SENTRY_RELEASE') or os.getenv('RELEASE')
+    # Only a real True opts in: a truthy string must not switch the locals on.
+    locals_setting = sentry_config.get('include_local_variables')
+    include_local_variables = locals_setting is True
+    if locals_setting is not None and not isinstance(locals_setting, bool):
+        logger.warning(
+            f'Invalid sentry.include_local_variables={locals_setting!r} (must be True or False); using False'
+        )
 
     # Resolve config -> env -> default fully before warning, so any warning
     # about a rejected value can state what is actually used instead.
@@ -146,6 +159,7 @@ def setup_sentry(logger: logging.Logger, sentry_config: Dict[str, Any]) -> None:
                 environment=sentry_environment,
                 release=sentry_release,
                 send_default_pii=True,
+                include_local_variables=include_local_variables,
                 traces_sample_rate=traces_sample_rate,
                 enable_logs=True,
                 before_send=before_send,
